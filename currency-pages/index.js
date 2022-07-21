@@ -1,3 +1,4 @@
 export * as minfin from './minfin.js';
-// export * as minyailo from './minyailo.js';
+export * as miniayloP2p from './miniaylo-p2p.js';
+export * as miniayloBanks from './miniaylo-banks.js';
 
