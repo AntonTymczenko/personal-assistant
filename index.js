@@ -26,6 +26,17 @@ const getCurrencyRates = async (browser) => {
 (async () => {
   const browser = await puppeteer.launch();
   
+  // TODO
+  /*
+    kit group
+      https://obmin24.if.ua/
+    Lviv Bank in IF
+      https://www.banklviv.com/kurs/
+    mono
+      https://minfin.com.ua/company/monobank/currency/
+    privat
+      https://minfin.com.ua/company/privatbank/currency/
+  */
   const currencyRates = await getCurrencyRates(browser);
   const humanReadableCurrencyRates =`
     ### USD
