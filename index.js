@@ -27,8 +27,24 @@ const getCurrencyRates = async (browser) => {
   const browser = await puppeteer.launch();
   
   const currencyRates = await getCurrencyRates(browser);
+  const humanReadableCurrencyRates =`
+    ### USD
 
-  console.log(currencyRates);
+    НБУ:\t\t${currencyRates.minfin.usd.ask}
+    Банки:\t\t${currencyRates.miniayloBanks.usd.bid}/${currencyRates.miniayloBanks.usd.ask}
+    ПОВи:\t\t${currencyRates.miniayloPoints.usd.bid}/${currencyRates.miniayloPoints.usd.ask}
+    Міняйло p2p:\t${currencyRates.miniayloP2p.usd.bid}/${currencyRates.miniayloP2p.usd.ask}
+
+
+    ### EUR
+
+    НБУ:\t\t${currencyRates.minfin.eur.ask}
+    Банки:\t\t${currencyRates.miniayloBanks.eur.bid}/${currencyRates.miniayloBanks.eur.ask}
+    ПОВи:\t\t${currencyRates.miniayloPoints.eur.bid}/${currencyRates.miniayloPoints.eur.ask}
+    Міняйло p2p:\t${currencyRates.miniayloP2p.eur.bid}/${currencyRates.miniayloP2p.eur.ask}
+  `;
+
+  console.log(humanReadableCurrencyRates);
 
   await browser.close();
 })();
