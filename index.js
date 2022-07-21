@@ -11,7 +11,6 @@ const getCurrencyRates = async (browser) => {
     const page = await browser.newPage();
     await page.goto(url); // start page, there may be more inside crawl()
     await page.waitForNetworkIdle();
-    await page.screenshot({path: `${pageSlug}-${Date.now()}.png`});
 
     const { usd, eur } = await crawl(page);;
 

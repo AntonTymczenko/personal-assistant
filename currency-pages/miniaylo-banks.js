@@ -14,7 +14,6 @@ export const crawl = async (page) => {
   // EUR
   await page.goto(urlEur);
   await page.waitForSelector('div[class="data-table-footer"] table tr:nth-child(2)');
-  await page.screenshot({path: `miniayloBanks-${Date.now()}.png`});
   const eurText = await page.evaluate(() => {
     return document.querySelector('div[class="data-table-footer"] table tr:nth-child(2)').innerText;
   });

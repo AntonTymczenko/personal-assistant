@@ -15,7 +15,6 @@ export const crawl = async (page) => {
   // EUR p2p
   await page.click('ul[data-role="currency-tab"] li[data-currency="EUR"]');
   await page.waitForNetworkIdle();
-  await page.screenshot({path: `miniaylo-${Date.now()}.png`});
   const eurText = await page.evaluate(() => {
     const bid = document.querySelector('[data-role="stat-average-bid-value"]').innerText;
     const ask = document.querySelector('[data-role="stat-average-ask-value"]').innerText;
