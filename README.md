@@ -4,4 +4,5 @@
 * Minyailo: average bank rate, average exchange points rate, average p2p rate
 * Lviv bank rate
 * Monobank rate
+* Ivano-Frankivsk Kit group exchange point
 
