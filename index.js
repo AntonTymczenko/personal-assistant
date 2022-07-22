@@ -28,8 +28,6 @@ const getCurrencyRates = async (browser) => {
   
   // TODO
   /*
-    Lviv Bank in IF
-      https://www.banklviv.com/kurs/
     mono
       https://minfin.com.ua/company/monobank/currency/
     privat
@@ -44,7 +42,9 @@ const getCurrencyRates = async (browser) => {
     ПОВи:\t\t${currencyRates.miniayloPoints.usd.bid}/${currencyRates.miniayloPoints.usd.ask}
     Міняйло p2p:\t${currencyRates.miniayloP2p.usd.bid}/${currencyRates.miniayloP2p.usd.ask}
 
+    Bank Lviv IF:\t${currencyRates.bankLvivIF.usd.bid}/${currencyRates.bankLvivIF.usd.ask}
     Kit group IF:\t${currencyRates.kitGroupIF.usd.bid}/${currencyRates.kitGroupIF.usd.ask}
+
 
 
     ### EUR
@@ -54,6 +54,7 @@ const getCurrencyRates = async (browser) => {
     ПОВи:\t\t${currencyRates.miniayloPoints.eur.bid}/${currencyRates.miniayloPoints.eur.ask}
     Міняйло p2p:\t${currencyRates.miniayloP2p.eur.bid}/${currencyRates.miniayloP2p.eur.ask}
 
+    Bank Lviv IF:\t${currencyRates.bankLvivIF.eur.bid}/${currencyRates.bankLvivIF.eur.ask}
     Kit group IF:\t${currencyRates.kitGroupIF.eur.bid}/${currencyRates.kitGroupIF.eur.ask}
   `;
 
