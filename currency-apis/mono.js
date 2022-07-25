@@ -21,8 +21,14 @@ const options = {
 
 const apiRequest = async () => new Promise((resolve, reject) => {
   const req = https.request(options, res => {
-    res.on('data', data => {
-      const list = JSON.parse(data);
+    let responseData = '';
+
+    res.on('data', chunk => {
+      responseData += chunk;
+    });
+
+    res.on('end', () => {
+      const list = JSON.parse(responseData);
       if (typeof list === 'object' && !Array.isArray(list) && list.errorDescription) {
         return reject(`Monobank API error: ${list.errorDescription}`);
       }
