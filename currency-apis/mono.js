@@ -24,7 +24,7 @@ const apiRequest = async () => new Promise((resolve, reject) => {
     res.on('data', data => {
       const list = JSON.parse(data);
       if (typeof list === 'object' && !Array.isArray(list) && list.errorDescription) {
-        throw new Error(list.errorDescription);
+        return reject(`Monobank API error: ${list.errorDescription}`);
       }
 
       const usdAsk = list.find(item => item.currencyCodeA === 840 && item.currencyCodeB === 980).rateSell;

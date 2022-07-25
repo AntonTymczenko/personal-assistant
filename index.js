@@ -27,9 +27,12 @@ const getCurrencyRates = async ({ browser, pages, apis }) => {
 
   // API requests
   await Promise.all(Object.entries(apis).map(async ([apiSlug, apiRequest]) => {
-    const { usd, eur } = await apiRequest();;
-
-    aggregated[apiSlug] = { usd, eur };
+    try {
+      const { usd, eur } = await apiRequest();;
+      aggregated[apiSlug] = { usd, eur };
+    } catch (e) {
+      console.log(e);
+    }
   }));
 
   return aggregated;
