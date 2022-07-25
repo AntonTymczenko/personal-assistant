@@ -8,32 +8,36 @@ import formatOutput from './format-output.js';
 const getCurrencyRates = async ({ browser, pages, apis }) => {
   const aggregated = {};
 
-  // Crawlers
-  await Promise.all(Object.entries(pages).map(async ([pageSlug, pageConfig]) => {
-    const { url, crawl } = pageConfig;
+  const promises = Object.entries(pages)
+    // Crawlers
+    .map(async ([pageSlug, pageConfig]) => {
+      const { url, crawl } = pageConfig;
 
-    const page = await browser.newPage();
-    await page.goto(url); // start page, there may be more inside crawl()
-    await page.waitForNetworkIdle();
+      const page = await browser.newPage();
+      await page.goto(url); // start page, there may be more inside crawl()
+      await page.waitForNetworkIdle();
 
-    try {
-      const { usd, eur } = await crawl(page);;
-      aggregated[pageSlug] = { usd, eur };
-    } catch (e) {}
+      try {
+        const { usd, eur } = await crawl(page);;
+        aggregated[pageSlug] = { usd, eur };
+      } catch (e) {}
 
-    await page.close();
+      await page.close();
 
-  }));
+    })
+    // API requests
+    .concat(Object.entries(apis)
+      .map(async ([apiSlug, apiRequest]) => {
+        try {
+          const { usd, eur } = await apiRequest();;
+          aggregated[apiSlug] = { usd, eur };
+        } catch (e) {
+          console.log(e);
+        }
+      })
+    );
 
-  // API requests
-  await Promise.all(Object.entries(apis).map(async ([apiSlug, apiRequest]) => {
-    try {
-      const { usd, eur } = await apiRequest();;
-      aggregated[apiSlug] = { usd, eur };
-    } catch (e) {
-      console.log(e);
-    }
-  }));
+  await Promise.all(promises);
 
   return aggregated;
 };
