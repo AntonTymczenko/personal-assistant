@@ -25,17 +25,18 @@ const tgChannelRequest = async () => {
     'bar text',
   ];
 
-  const rates = list.filter(msg => msg.match(/ВАРТІСТЬ ОДНІЄЇ ☕️ ЗАПАШНОЇ КАВИ У МІСТАХ СВІТУ НА/gm));
-
   // TODO: finds first, change to last
-  const usd = rates.find(msg => msg.match(/🇺🇸.*\n\n/gm)) || '';
-  const eur = rates.find(msg => msg.match(/🇪🇺.*\n\n/gm)) || '';
-  const [ usdAsk, usdBid ] = usd.match(/\d{1,3},\d{2}/) || [0, 0];
-  const [ eurAsk, eurBid ] = usd.match(/\d{1,3},\d{2}/) || [0, 0];
+  const rates = (list.filter(msg => msg.match(/ВАРТІСТЬ ОДНІЄЇ ☕️ ЗАПАШНОЇ КАВИ У МІСТАХ СВІТУ НА/gm)))[0] || '';
+
+  const usd = (rates.match(/🇺🇸.*\n.*\n\n/gm) || [''])[0];
+  const eur = (rates.match(/🇪🇺.*\n.*\n\n/gm) || [''])[0];
+
+  const [ usdBid, usdAsk ] = usd.replace('\n',' ').match(/\d{1,3},\d{2}/g) || ['0', '0'];
+  const [ eurBid, eurAsk ] = eur.replace('\n',' ').match(/\d{1,3},\d{2}/g) || ['0', '0'];
 
   return {
-    usd: { ask: Number(usdAsk), bid: Number(usdBid) },
-    eur: { ask: Number(eurAsk), bid: Number(eurBid) },
+    usd: { ask: Number(usdAsk.replace(',', '.')), bid: Number(usdBid.replace(',', '.')) },
+    eur: { ask: Number(eurAsk.replace(',', '.')), bid: Number(eurBid.replace(',', '.')) },
   };
 };
 

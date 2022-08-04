@@ -28,35 +28,32 @@ const formatOutput = (currencyRates) => {
     return output;
   };
 
-  return `
-    ### USD
+  return `💵 USD
 
-    ${format('minfin', 'usd')}
-    ${format('miniayloBanks', 'usd')}
-    ${format('miniayloPoints', 'usd')}
-    ${format('miniayloP2p', 'usd')}
+${format('minfin', 'usd')}
+${format('miniayloBanks', 'usd')}
+${format('miniayloPoints', 'usd')}
+${format('miniayloP2p', 'usd')}
 
-    ${format('mono', 'usd')}
-    ${format('privat', 'usd')}
+${format('mono', 'usd')}
+${format('privat', 'usd')}
 
-    ${format('bankLvivIF', 'usd')}
-    ${format('kitGroupIF', 'usd')}
-
+${format('bankLvivIF', 'usd')}
+${format('kitGroupIF', 'usd')}
 
 
-    ### EUR
+💶 EUR
 
-    ${format('minfin', 'eur')}
-    ${format('miniayloBanks', 'eur')}
-    ${format('miniayloPoints', 'eur')}
-    ${format('miniayloP2p', 'eur')}
+${format('minfin', 'eur')}
+${format('miniayloBanks', 'eur')}
+${format('miniayloPoints', 'eur')}
+${format('miniayloP2p', 'eur')}
 
-    ${format('mono', 'eur')}
-    ${format('privat', 'eur')}
+${format('mono', 'eur')}
+${format('privat', 'eur')}
 
-    ${format('bankLvivIF', 'eur')}
-    ${format('kitGroupIF', 'eur')}
-  `;
+${format('bankLvivIF', 'eur')}
+${format('kitGroupIF', 'eur')}`;
 
 };
 

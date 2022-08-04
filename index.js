@@ -1,4 +1,6 @@
 import puppeteer from 'puppeteer';
+import TelegramBot from 'node-telegram-bot-api';
+import dotenv from 'dotenv';
 
 import * as currencyPagesMap from './currency-pages/index.js';
 import * as currencyApisMap from './currency-apis/index.js';
@@ -52,8 +54,7 @@ const getCurrencyRates = async ({ browser, pages, apis, telegram }) => {
   return aggregated;
 };
 
-
-(async () => {
+const getData = async () => {
   const browser = await puppeteer.launch();
   
   const currencyRates = await getCurrencyRates({
@@ -63,9 +64,69 @@ const getCurrencyRates = async ({ browser, pages, apis, telegram }) => {
     telegram: currencyTelegramMap,
   });
 
+  await browser.close();
+
   const humanReadableCurrencyRates = formatOutput(currencyRates);
 
-  console.log(humanReadableCurrencyRates);
+  return humanReadableCurrencyRates;
+};
 
-  await browser.close();
+(async () => {
+  if (process.env.NODE_ENV !== 'production') {
+    dotenv.config();
+  }
+
+  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+  const tgWhitelist = JSON.parse(process.env.TELEGRAM_WHITELISTED_IDS);
+  const tgAdminId = Number.parseInt(process.env.TELEGRAM_ADMIN_ID, 10);
+  const commandsList = [ 'start', 'help' ];
+  const bot = new TelegramBot(tgToken, { polling: true });
+
+  bot.on('message', msg => {
+    try {
+      const chatId = msg.chat.id;
+      if (tgWhitelist.includes(chatId)) {
+
+        const checkForCommand = msg.text.match(new RegExp(`^\\/(${commandsList.join('|')}).*`));
+        if (checkForCommand) {
+          const [, command ] = checkForCommand[0].match(new RegExp(`^\\/(${commandsList.join('|')})`));
+          const argsMatch = checkForCommand[0].match(new RegExp(`^\\/(${commandsList.join('|')}) (.+)`));
+          const args = Array.isArray(argsMatch) && argsMatch[2];
+
+
+          switch (command) {
+            case 'start': {
+              getData().then((data) => {
+                bot.sendMessage(chatId, data);
+              });
+              break;
+            }
+            default: {
+              let response = `Command "${command}"`
+                + ( args ? ` args "${args}"`: '');
+
+              bot.sendMessage(chatId, response);
+            }
+          }
+        } else {
+          const response = `Text "${msg.text}" from @${msg.from.username}`;
+          bot.sendMessage(chatId, response);
+        }
+      } else {
+        const response = 'You are not in the whitelist. Access denied';
+        bot.sendMessage(chatId, response);
+        if (tgAdminId) {
+          const { username, first_name, last_name } = msg.from;
+          const user = (username ? ` nickname @${username}` : '')
+          const fullName = first_name
+            + (last_name ? ` ${last_name}` : '')
+
+          const toAdmin = `User [${fullName}](tg://user?id=${chatId})${user} tried to use the bot`;
+          bot.sendMessage(tgAdminId, toAdmin, { parse_mode: 'MarkdownV2' });
+        }
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  });
 })();
