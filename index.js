@@ -2,14 +2,14 @@ import puppeteer from 'puppeteer';
 
 import * as currencyPagesMap from './currency-pages/index.js';
 import * as currencyApisMap from './currency-apis/index.js';
+import * as currencyTelegramMap from './currency-apis/index.js';
 import formatOutput from './format-output.js';
 
 
-const getCurrencyRates = async ({ browser, pages, apis }) => {
+const getCurrencyRates = async ({ browser, pages, apis, telegram }) => {
   const aggregated = {};
 
-  const promises = Object.entries(pages)
-    // Crawlers
+  const crawlerPromises = Object.entries(pages)
     .map(async ([pageSlug, pageConfig]) => {
       const { url, crawl } = pageConfig;
 
@@ -23,19 +23,31 @@ const getCurrencyRates = async ({ browser, pages, apis }) => {
       } catch (e) {}
 
       await page.close();
+    });
 
-    })
-    // API requests
-    .concat(Object.entries(apis)
-      .map(async ([apiSlug, apiRequest]) => {
-        try {
-          const { usd, eur } = await apiRequest();;
-          aggregated[apiSlug] = { usd, eur };
-        } catch (e) {
-          console.log(e);
-        }
-      })
-    );
+  const apiPromises = Object.entries(apis)
+    .map(async ([apiSlug, apiRequest]) => {
+      try {
+        const { usd, eur } = await apiRequest();;
+        aggregated[apiSlug] = { usd, eur };
+      } catch (e) {
+        console.log(e);
+      }
+    });
+
+  const telegramPromises = Object.entries(telegram)
+    .map(async ([telegramSlug, telegramRequest]) => {
+      try {
+        const { usd, eur } = await telegramRequest();;
+        aggregated[telegramSlug] = { usd, eur };
+      } catch (e) {
+        console.log(e);
+      }
+    });
+
+  const promises = cralwerPromises
+    .concat(telegramPromises)
+    .concat(apiPromises);
 
   await Promise.all(promises);
 
@@ -50,6 +62,7 @@ const getCurrencyRates = async ({ browser, pages, apis }) => {
     browser,
     pages: currencyPagesMap,
     apis: currencyApisMap,
+    telegram: currencyTelegramMap,
   });
 
   const humanReadableCurrencyRates = formatOutput(currencyRates);
