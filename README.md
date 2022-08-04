@@ -2,7 +2,8 @@
 
 * National Bank of Ukraine
 * Minyailo: average bank rate, average exchange points rate, average p2p rate
-* Lviv bank rate
 * Monobank rate
+* Privatbank cash rate (in branches)
+* Lviv bank cash rate (Ivano-Frankivsk branch)
 * Ivano-Frankivsk Kit group exchange point
 
