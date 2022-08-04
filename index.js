@@ -2,7 +2,7 @@ import puppeteer from 'puppeteer';
 
 import * as currencyPagesMap from './currency-pages/index.js';
 import * as currencyApisMap from './currency-apis/index.js';
-import * as currencyTelegramMap from './currency-apis/index.js';
+import * as currencyTelegramMap from './currency-telegram/index.js';
 import formatOutput from './format-output.js';
 
 
@@ -10,9 +10,7 @@ const getCurrencyRates = async ({ browser, pages, apis, telegram }) => {
   const aggregated = {};
 
   const crawlerPromises = Object.entries(pages)
-    .map(async ([pageSlug, pageConfig]) => {
-      const { url, crawl } = pageConfig;
-
+    .map(([pageSlug, { url, crawl }]) => async () => {
       const page = await browser.newPage();
       await page.goto(url); // start page, there may be more inside crawl()
       await page.waitForNetworkIdle();
@@ -26,7 +24,7 @@ const getCurrencyRates = async ({ browser, pages, apis, telegram }) => {
     });
 
   const apiPromises = Object.entries(apis)
-    .map(async ([apiSlug, apiRequest]) => {
+    .map(([apiSlug, apiRequest]) => async () => {
       try {
         const { usd, eur } = await apiRequest();;
         aggregated[apiSlug] = { usd, eur };
@@ -36,7 +34,7 @@ const getCurrencyRates = async ({ browser, pages, apis, telegram }) => {
     });
 
   const telegramPromises = Object.entries(telegram)
-    .map(async ([telegramSlug, telegramRequest]) => {
+    .map(([telegramSlug, telegramRequest]) => async () => {
       try {
         const { usd, eur } = await telegramRequest();;
         aggregated[telegramSlug] = { usd, eur };
@@ -45,11 +43,11 @@ const getCurrencyRates = async ({ browser, pages, apis, telegram }) => {
       }
     });
 
-  const promises = cralwerPromises
+  const promises = crawlerPromises
     .concat(telegramPromises)
     .concat(apiPromises);
 
-  await Promise.all(promises);
+  await Promise.all(promises.map((promiseFunc) => promiseFunc()));
 
   return aggregated;
 };
