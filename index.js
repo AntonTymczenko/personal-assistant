@@ -55,7 +55,11 @@ const getCurrencyRates = async ({ browser, pages, apis, telegram }) => {
 };
 
 const getData = async () => {
-  const browser = await puppeteer.launch();
+  let browserOptions
+  if (process.env.NODE_ENV !== 'production') {
+    browserOptions = { args: ['--no-sandbox'] };
+  }
+  const browser = await puppeteer.launch(browserOptions);
   
   const currencyRates = await getCurrencyRates({
     browser,
