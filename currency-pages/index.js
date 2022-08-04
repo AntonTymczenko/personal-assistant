@@ -4,4 +4,3 @@ export * as miniayloBanks from './miniaylo-banks.js';
 export * as miniayloPoints from './miniaylo-points.js';
 export * as kitGroupIF from './kit-group-if.js';
 export * as bankLvivIF from './bank-lviv-if.js';
-

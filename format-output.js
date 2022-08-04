@@ -7,6 +7,7 @@ const formatOutput = (currencyRates) => {
       miniayloPoints: 'ПОВи:\t\t',
       miniayloP2p: 'Міняйло p2p:\t',
       mono: 'Mono:\t\t',
+      privat: 'Privatbank:\t\t',
       bankLvivIF: 'Bank Lviv IF:\t',
       kitGroupIF: 'Kit group IF:\t',
     };
@@ -36,6 +37,7 @@ const formatOutput = (currencyRates) => {
     ${format('miniayloP2p', 'usd')}
 
     ${format('mono', 'usd')}
+    ${format('privat', 'usd')}
 
     ${format('bankLvivIF', 'usd')}
     ${format('kitGroupIF', 'usd')}
@@ -50,6 +52,7 @@ const formatOutput = (currencyRates) => {
     ${format('miniayloP2p', 'eur')}
 
     ${format('mono', 'eur')}
+    ${format('privat', 'eur')}
 
     ${format('bankLvivIF', 'eur')}
     ${format('kitGroupIF', 'eur')}
