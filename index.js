@@ -1,5 +1,5 @@
-import puppeteer from 'puppeteer';
 import TelegramBot from 'node-telegram-bot-api';
+import puppeteer from 'puppeteer';
 import dotenv from 'dotenv';
 
 import * as currencyPagesMap from './currency-pages/index.js';
@@ -54,31 +54,65 @@ const getCurrencyRates = async ({ browser, pages, apis, telegram }) => {
   return aggregated;
 };
 
-const getData = async () => {
-  let browserOptions
-  if (process.env.NODE_ENV !== 'production') {
-    browserOptions = { args: ['--no-sandbox'] };
+const getData = async ({ cache, browser, output, places }) => {
+  const lastCached = cache.length && cache[cache.length - 1];
+  if (lastCached) {
+    if (cache.find(({ fetching }) => fetching === true)) {
+      return;
+    }
+
+    const currentMoment = Date.now();
+    const timeDiff = currentMoment - lastCached.timestamp
+
+    if (timeDiff < (60000 * 20)) { // 20m
+      const min = Math.floor(timeDiff/(1000*60));
+      const sec = Math.floor(timeDiff / 1000) % 60;
+
+      const timeAgo = (min ? min + 'min ' : '')
+        + ( sec ? sec + 's ' : '')
+      output(`Using cached version (${timeAgo || '1s '}ago)`);
+      const formattedOutput = formatOutput(lastCached);
+
+      return formattedOutput;
+    } else {
+      cache.pop();
+    }
   }
-  const browser = await puppeteer.launch(browserOptions);
-  
+
+  const {
+    pages,
+    apis,
+    telegram,
+  } = places;
+
+  cache.push({ fetching: true });
+  output('Fetching data, please wait...');
   const currencyRates = await getCurrencyRates({
     browser,
-    pages: currencyPagesMap,
-    apis: currencyApisMap,
-    telegram: currencyTelegramMap,
+    pages,
+    apis,
+    telegram,
   });
 
-  await browser.close();
+  cache.splice(cache.findIndex(({ fetching }) => fetching === true), 1)
+  const timestamp = Date.now();
+  cache.push({ currencyRates, timestamp });
 
-  const humanReadableCurrencyRates = formatOutput(currencyRates);
+  const formattedOutput = formatOutput({ currencyRates });
 
-  return humanReadableCurrencyRates;
+  return formattedOutput;
 };
 
 (async () => {
+  let browserOptions
   if (process.env.NODE_ENV !== 'production') {
+    browserOptions = { args: ['--no-sandbox'] };
     dotenv.config();
+    console.log('Non-prod mode');
   }
+
+  const cache = [];
+  const browser = await puppeteer.launch(browserOptions);
 
   const tgToken = process.env.TELEGRAM_BOT_TOKEN;
   const tgWhitelist = JSON.parse(process.env.TELEGRAM_WHITELISTED_IDS);
@@ -100,8 +134,19 @@ const getData = async () => {
 
           switch (command) {
             case 'start': {
-              getData().then((data) => {
-                bot.sendMessage(chatId, data);
+              getData({
+                cache,
+                browser,
+                output: (msg) => bot.sendMessage(chatId, msg),
+                places: {
+                  pages: currencyPagesMap,
+                  apis: currencyApisMap,
+                  telegram: currencyTelegramMap,
+                },
+              }).then((data) => {
+                if (data) {
+                  bot.sendMessage(chatId, data);
+                }
               });
               break;
             }
@@ -133,4 +178,6 @@ const getData = async () => {
       console.log(e);
     }
   });
+
+  // await browser.close();
 })();

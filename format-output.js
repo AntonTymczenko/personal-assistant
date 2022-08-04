@@ -1,5 +1,5 @@
 
-const formatOutput = (currencyRates) => {
+const formatOutput = ({ currencyRates }) => {
   const format = (sourceSlug, currencySlug) => {
     const prefixes = {
       minfin: 'НБУ:\t\t',
