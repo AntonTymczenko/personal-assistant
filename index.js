@@ -119,7 +119,7 @@ const getData = async ({ cache, logger, browser, places }) => {
   cache.push({ currencyRates, timestamp });
   logger.debug('New data is saved to cache');
 
-  const formattedOutput = formatOutput({ currencyRates });
+  const formattedOutput = formatOutput({ currencyRates, timestamp });
 
   return formattedOutput;
 };

@@ -1,5 +1,5 @@
 
-const formatOutput = ({ currencyRates }) => {
+const formatOutput = ({ currencyRates, timestamp }) => {
   const format = (sourceSlug, currencySlug) => {
     const prefixes = {
       minfin: 'НБУ:\t\t',
@@ -28,7 +28,11 @@ const formatOutput = ({ currencyRates }) => {
     return output;
   };
 
-  return `💵 USD
+  const dateTime = new Date(timestamp).toLocaleString('SE');
+
+  return `Курс валют на ${dateTime}
+
+💵 USD
 
 ${format('minfin', 'usd')}
 ${format('miniayloBanks', 'usd')}
