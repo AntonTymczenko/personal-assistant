@@ -106,9 +106,13 @@ const getData = async ({ cache, browser, output, places }) => {
 (async () => {
   let browserOptions
   if (process.env.NODE_ENV !== 'production') {
-    browserOptions = { args: ['--no-sandbox'] };
     dotenv.config();
     console.log('Non-prod mode');
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    browserOptions = { args: ['--no-sandbox'] };
+    console.log('Production mode');
   }
 
   const cache = [];
