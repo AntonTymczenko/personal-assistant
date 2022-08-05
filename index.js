@@ -2,46 +2,57 @@ import TelegramBot from 'node-telegram-bot-api';
 import puppeteer from 'puppeteer';
 import dotenv from 'dotenv';
 
+import Logger from './logger/index.js';
 import * as currencyPagesMap from './currency-pages/index.js';
 import * as currencyApisMap from './currency-apis/index.js';
 import * as currencyTelegramMap from './currency-telegram/index.js';
 import formatOutput from './format-output.js';
 
 
-const getCurrencyRates = async ({ browser, pages, apis, telegram }) => {
+const getCurrencyRates = async ({ logger, browser, pages, apis, telegram }) => {
   const aggregated = {};
 
   const crawlerPromises = Object.entries(pages)
     .map(([pageSlug, { url, crawl }]) => async () => {
+      logger.debug(`Fetching data from page ${pageSlug}`);
       const page = await browser.newPage();
-      await page.goto(url); // start page, there may be more inside crawl()
-      await page.waitForNetworkIdle();
+      logger.debug(`Created new page ${pageSlug} ${url}`);
+      try {
+        await page.goto(url, { waitUntil: 'networkidle0', timeout: 0 }); // start page, there may be more inside crawl()
+        logger.debug(`Start page is ready and network is idle for ${pageSlug}`);
+      } catch (e) {
+        console.error(e);
+      }
 
       try {
-        const { usd, eur } = await crawl(page);;
+        const { usd, eur } = await crawl(page, { logger });;
         aggregated[pageSlug] = { usd, eur };
+        logger.debug(`Saved to aggregated obj data for ${pageSlug}`);
       } catch (e) {}
 
       await page.close();
+      logger.debug(`Closed page with ${pageSlug}`);
     });
 
   const apiPromises = Object.entries(apis)
     .map(([apiSlug, apiRequest]) => async () => {
+      logger.info(`Fetching data from API ${apiSlug}`);
       try {
         const { usd, eur } = await apiRequest();;
         aggregated[apiSlug] = { usd, eur };
       } catch (e) {
-        console.log(e);
+        logger.error(e);
       }
     });
 
   const telegramPromises = Object.entries(telegram)
     .map(([telegramSlug, telegramRequest]) => async () => {
+      logger.info(`Fetching data from telegram ${telegramSlug}`);
       try {
         const { usd, eur } = await telegramRequest();;
         aggregated[telegramSlug] = { usd, eur };
       } catch (e) {
-        console.log(e);
+        logger.error(e);
       }
     });
 
@@ -54,7 +65,7 @@ const getCurrencyRates = async ({ browser, pages, apis, telegram }) => {
   return aggregated;
 };
 
-const getData = async ({ cache, browser, output, places }) => {
+const getData = async ({ cache, logger, browser, places }) => {
   const lastCached = cache.length && cache[cache.length - 1];
   if (lastCached) {
     if (cache.find(({ fetching }) => fetching === true)) {
@@ -70,7 +81,7 @@ const getData = async ({ cache, browser, output, places }) => {
 
       const timeAgo = (min ? min + 'min ' : '')
         + ( sec ? sec + 's ' : '')
-      output(`Using cached version (${timeAgo || '1s '}ago)`);
+      logger.info(`Using cached version (${timeAgo || '1s '}ago)`);
       const formattedOutput = formatOutput(lastCached);
 
       return formattedOutput;
@@ -86,8 +97,9 @@ const getData = async ({ cache, browser, output, places }) => {
   } = places;
 
   cache.push({ fetching: true });
-  output('Fetching data, please wait...');
+  logger.info('Fetching fresh data');
   const currencyRates = await getCurrencyRates({
+    logger,
     browser,
     pages,
     apis,
@@ -106,16 +118,21 @@ const getData = async ({ cache, browser, output, places }) => {
 };
 
 (async () => {
-  let browserOptions
+  const logger = new Logger(['console']);
+
   if (process.env.NODE_ENV !== 'production') {
     dotenv.config();
-    console.log('Non-prod mode');
+    logger.info('Non-prod mode');
   }
 
+  const browserOptions = {
+    ignoreDefaultArgs: ['--disable-extensions'],
+  };
   if (process.env.NODE_ENV === 'production') {
-    browserOptions = { args: ['--no-sandbox'] };
-    console.log('Production mode');
+    browserOptions.args = [ ...(browserOptions.args || []), '--no-sandbox', '--disable-setuid-sandbox' ];
+    logger.info('Production mode');
   }
+  logger.debug(`browserOptions are ${JSON.stringify(browserOptions)}`);
 
   const cache = [];
   const browser = await puppeteer.launch(browserOptions);
@@ -129,6 +146,7 @@ const getData = async ({ cache, browser, output, places }) => {
   bot.on('message', msg => {
     try {
       const chatId = msg.chat.id;
+      logger.info(`Received msg from user id ${chatId}`)
       if (tgWhitelist.includes(chatId)) {
 
         const checkForCommand = msg.text.match(new RegExp(`^\\/(${commandsList.join('|')}).*`));
@@ -140,10 +158,11 @@ const getData = async ({ cache, browser, output, places }) => {
 
           switch (command) {
             case 'start': {
+              logger.info(`START command from ${chatId}`)
               getData({
                 cache,
+                logger,
                 browser,
-                output: (msg) => bot.sendMessage(chatId, msg),
                 places: {
                   pages: currencyPagesMap,
                   apis: currencyApisMap,
@@ -151,6 +170,7 @@ const getData = async ({ cache, browser, output, places }) => {
                 },
               }).then((data) => {
                 if (data) {
+                  logger.info(`Sending response msg to ${chatId}`);
                   bot.sendMessage(chatId, data);
                 }
               });
@@ -160,6 +180,7 @@ const getData = async ({ cache, browser, output, places }) => {
               let response = `Command "${command}"`
                 + ( args ? ` args "${args}"`: '');
 
+              logger.info(`${response}. User ID ${chatId}`);
               bot.sendMessage(chatId, response);
             }
           }
@@ -169,6 +190,7 @@ const getData = async ({ cache, browser, output, places }) => {
         }
       } else {
         const response = 'You are not in the whitelist. Access denied';
+        logger.info(`Access denied to ${chatId}`);
         bot.sendMessage(chatId, response);
         if (tgAdminId) {
           const { username, first_name, last_name } = msg.from;
@@ -178,10 +200,11 @@ const getData = async ({ cache, browser, output, places }) => {
 
           const toAdmin = `User [${fullName}](tg://user?id=${chatId})${user} tried to use the bot`;
           bot.sendMessage(tgAdminId, toAdmin, { parse_mode: 'MarkdownV2' });
+          logger.info(`Sent message to admin about denied access for ${chatId}`);
         }
       }
     } catch (e) {
-      console.log(e);
+      logger.error(e);
     }
   });
 
