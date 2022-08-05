@@ -180,19 +180,30 @@ const getData = async ({ cache, logger, browser, places }) => {
           switch (command) {
             case 'start': {
               logger.info(`START command from ${chatId}`)
-              getData({
-                cache,
-                logger,
-                browser,
-                places: {
-                  pages: currencyPagesMap,
-                  apis: currencyApisMap,
-                  telegram: currencyTelegramMap,
-                },
-              }).then((data) => {
-                if (data) {
-                  logger.info(`Sending response msg to ${chatId}`);
-                  bot.sendMessage(chatId, data);
+              Promise.race([
+                getData({
+                  cache,
+                  logger,
+                  browser,
+                  places: {
+                    pages: currencyPagesMap,
+                    apis: currencyApisMap,
+                    telegram: currencyTelegramMap,
+                  },
+                }).then((data) => {
+                  if (data) {
+                    logger.info(`Sending response msg to ${chatId}`);
+                    bot.sendMessage(chatId, data);
+                  }
+                  return data;
+                }),
+                new Promise((r) => {
+                  setTimeout(r, 1000);
+                }),
+              ]).then((data) => {
+                if (!data) {
+                  logger.info(`Sending 'please wait' msg to ${chatId}`);
+                  bot.sendMessage(chatId, 'Please wait...');
                 }
               });
               break;
