@@ -1,37 +1,41 @@
-export const url = 'https://tables.finance.ua/ua/currency/cash/-/ua/usd/2'; // start page, contains USD banks
+import { timeout } from './config.js';
+
+
+const url = 'https://tables.finance.ua/ua/currency/cash/-/ua/usd/2'; // start page, contains USD banks
 
 const urlEur = 'https://tables.finance.ua/ua/currency/cash/-/ua/eur/2'; // EUR banks
 
-export const crawl = async (page, { logger }) => {
-  const log = (txt) => logger.debug(`Miniaylo points. ${txt}`);
+
+const crawl = async ({ debug, page }) => {
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
+  debug(`Start page is ready, has DOM content loaded. Evaluating`);
 
   // USD
+  debug('Evaluate USD part');
   const usdText = await page.evaluate(() => {
     const txt = document.querySelector('div[class="data-table-footer"] table tr:nth-child(2)').innerText;
 
-    log('Got parent node with USD text');
 
     return txt;
   });
 
   const usdBid = Number.parseFloat(usdText.split('\t')[0].replace(' ', ''));
   const usdAsk = Number.parseFloat(usdText.split('\t')[1].replace(' ', ''));
-  log('Got USD numbers');
+  debug('Got USD numbers');
 
   // EUR
-  await page.goto(urlEur);
-  await page.waitForSelector('div[class="data-table-footer"] table tr:nth-child(2)');
+  debug('Evaluate EUR part');
+  await page.goto(urlEur, { waitUntil: 'domcontentloaded', timeout });
+  await page.waitForSelector('div[class="data-table-footer"] table tr:nth-child(2)', { timeout });
   const eurText = await page.evaluate(() => {
     const txt = document.querySelector('div[class="data-table-footer"] table tr:nth-child(2)').innerText;
-
-    log('Got parent node with EUR text');
 
     return txt;
   });
 
   const eurBid = Number.parseFloat(eurText.split('\t')[0].replace(' ', ''));
   const eurAsk = Number.parseFloat(eurText.split('\t')[1].replace(' ', ''));
-  log('Got EUR numbers');
+  debug('Got EUR numbers');
 
   return {
     usd: { bid: usdBid, ask: usdAsk },
@@ -39,3 +43,5 @@ export const crawl = async (page, { logger }) => {
   };
 };
 
+
+export default crawl;

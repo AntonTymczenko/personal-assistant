@@ -13,33 +13,37 @@ const getCurrencyRates = async ({ logger, browser, pages, apis, telegram }) => {
   const aggregated = {};
 
   const crawlerPromises = Object.entries(pages)
-    .map(([pageSlug, { url, crawl }]) => async () => {
-      logger.debug(`Fetching data from page ${pageSlug}`);
+    .map(([pageSlug, crawl]) => async () => {
+      const debug = (txt) => logger.debug(`Crawling ${pageSlug}. ${txt}`);
       const page = await browser.newPage();
-      logger.debug(`Created new page ${pageSlug} ${url}`);
+      debug('Created new tab in the browser');
+
       try {
-        await page.goto(url, { waitUntil: 'networkidle0', timeout: 0 }); // start page, there may be more inside crawl()
-        logger.debug(`Start page is ready and network is idle for ${pageSlug}`);
+        const { usd, eur } = await crawl({ debug, page });
+        aggregated[pageSlug] = { usd, eur };
+        debug('Saved to aggregated data object');
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
 
-      try {
-        const { usd, eur } = await crawl(page, { logger });;
-        aggregated[pageSlug] = { usd, eur };
-        logger.debug(`Saved to aggregated obj data for ${pageSlug}`);
-      } catch (e) {}
-
       await page.close();
-      logger.debug(`Closed page with ${pageSlug}`);
+      debug(`Closed page`);
     });
+
+  const crawling = async () => crawlerPromises
+    .reduce(
+      (prev, curr) => prev.then(() => curr()),
+      Promise.resolve()
+    )
+    .then(() => logger.debug('Puppeteer finished crawling'))
 
   const apiPromises = Object.entries(apis)
     .map(([apiSlug, apiRequest]) => async () => {
-      logger.info(`Fetching data from API ${apiSlug}`);
+      logger.info(`API data fetching ${apiSlug}. Started`);
       try {
-        const { usd, eur } = await apiRequest();;
+        const { usd, eur } = await apiRequest();
         aggregated[apiSlug] = { usd, eur };
+        logger.info(`API data fetching ${apiSlug}. Done and saved`);
       } catch (e) {
         logger.error(e);
       }
@@ -47,20 +51,22 @@ const getCurrencyRates = async ({ logger, browser, pages, apis, telegram }) => {
 
   const telegramPromises = Object.entries(telegram)
     .map(([telegramSlug, telegramRequest]) => async () => {
-      logger.info(`Fetching data from telegram ${telegramSlug}`);
+      logger.info(`Telegram parsing ${telegramSlug}. Started`);
       try {
-        const { usd, eur } = await telegramRequest();;
+        const { usd, eur } = await telegramRequest();
         aggregated[telegramSlug] = { usd, eur };
+        logger.info(`Telegram parsing ${telegramSlug}. Done and saved`);
       } catch (e) {
         logger.error(e);
       }
     });
 
-  const promises = crawlerPromises
-    .concat(telegramPromises)
-    .concat(apiPromises);
-
+  const promises = [ crawling ]
+    .concat(apiPromises)
+    .concat(telegramPromises);
   await Promise.all(promises.map((promiseFunc) => promiseFunc()));
+
+  logger.debug('All the data is fetched. Promises are closed');
 
   return aggregated;
 };
@@ -111,6 +117,7 @@ const getData = async ({ cache, logger, browser, places }) => {
   // TODO: merge current with the last. Update currency rates instead of creating a new
   // object. Mono might be not present in the latest updates because of 'too many requests'
   cache.push({ currencyRates, timestamp });
+  logger.debug('New data is saved to cache');
 
   const formattedOutput = formatOutput({ currencyRates });
 
@@ -136,7 +143,21 @@ const getData = async ({ cache, logger, browser, places }) => {
 
   const cache = [];
   const browser = await puppeteer.launch(browserOptions);
+  logger.debug('Puppeteer browser is ready');
 
+  // Fetch data on start
+  getData({
+    cache,
+    logger,
+    browser,
+    places: {
+      pages: currencyPagesMap,
+      apis: currencyApisMap,
+      telegram: currencyTelegramMap,
+    },
+  });
+
+  // Initialize Telegram bot and start listen to messages
   const tgToken = process.env.TELEGRAM_BOT_TOKEN;
   const tgWhitelist = JSON.parse(process.env.TELEGRAM_WHITELISTED_IDS);
   const tgAdminId = Number.parseInt(process.env.TELEGRAM_ADMIN_ID, 10);
@@ -208,5 +229,8 @@ const getData = async ({ cache, logger, browser, places }) => {
     }
   });
 
-  // await browser.close();
+  process.on('SIGINT', async () => {
+    await browser.close();
+    console.log('Browser closed');
+  });
 })();

@@ -1,37 +1,39 @@
-export const url = 'https://tables.finance.ua/ua/currency/cash/-/ua/usd/0'; // start page, contains USD banks
+import { timeout } from './config.js';
 
+
+const url = 'https://tables.finance.ua/ua/currency/cash/-/ua/usd/0'; // start page, contains USD banks
 const urlEur = 'https://tables.finance.ua/ua/currency/cash/-/ua/eur/0'; // EUR banks
 
-export const crawl = async (page, { logger }) => {
-  const log = (txt) => logger.debug(`Miniaylo banks. ${txt}`);
+
+const crawl = async ({ debug, page }) => {
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
+  debug('Start page is ready, has DOM content loaded. Evaluating');
 
   // USD
+  debug('Evaluate USD part');
   const usdText = await page.evaluate(() => {
     const txt = document.querySelector('div[class="data-table-footer"] table tr:nth-child(2)').innerText;
-
-    log('Found parent node text USD');
 
     return txt;
   });
 
   const usdBid = Number.parseFloat(usdText.split('\t')[0].replace(' ', ''));
   const usdAsk = Number.parseFloat(usdText.split('\t')[1].replace(' ', ''));
-  log('Got USD data');
+  debug('Got USD data');
 
   // EUR
-  await page.goto(urlEur);
-  await page.waitForSelector('div[class="data-table-footer"] table tr:nth-child(2)');
+  debug('Evaluate EUR part');
+  await page.goto(urlEur, { timeout });
+  await page.waitForSelector('div[class="data-table-footer"] table tr:nth-child(2)', { timeout });
   const eurText = await page.evaluate(() => {
     const txt = document.querySelector('div[class="data-table-footer"] table tr:nth-child(2)').innerText;
-
-    log('Found parent node text EUR');
 
     return txt;
   });
 
   const eurBid = Number.parseFloat(eurText.split('\t')[0].replace(' ', ''));
   const eurAsk = Number.parseFloat(eurText.split('\t')[1].replace(' ', ''));
-  log('Got EUR data');
+  debug('Got EUR data');
 
   return {
     usd: { bid: usdBid, ask: usdAsk },
@@ -39,3 +41,5 @@ export const crawl = async (page, { logger }) => {
   };
 };
 
+
+export default crawl;

@@ -1,5 +1,4 @@
-export * as minfin from './minfin.js';
-export * as miniayloP2p from './miniaylo-p2p.js';
-export * as miniayloBanks from './miniaylo-banks.js';
-export * as miniayloPoints from './miniaylo-points.js';
-export * as bankLvivIF from './bank-lviv-if.js';
+export { default as minfin } from './minfin.js';
+export { default as miniayloBanks } from './miniaylo-banks.js';
+export { default as miniayloPoints } from './miniaylo-points.js';
+export { default as bankLvivIF } from './bank-lviv-if.js';
