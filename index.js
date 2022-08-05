@@ -96,6 +96,8 @@ const getData = async ({ cache, browser, output, places }) => {
 
   cache.splice(cache.findIndex(({ fetching }) => fetching === true), 1)
   const timestamp = Date.now();
+  // TODO: merge current with the last. Update currency rates instead of creating a new
+  // object. Mono might be not present in the latest updates because of 'too many requests'
   cache.push({ currencyRates, timestamp });
 
   const formattedOutput = formatOutput({ currencyRates });
