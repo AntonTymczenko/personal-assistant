@@ -8,6 +8,10 @@ import * as currencyApisMap from './currency-apis/index.js';
 import * as currencyTelegramMap from './currency-telegram/index.js';
 import formatOutput from './format-output.js';
 
+// config
+const MINUTES_REFRESH_DATA = 20;
+const SECONDS_UNTIL_PLEASE_WAIT = 3;
+const SECONDS_UNTIL_RETRY_TO_SEND = 2;
 
 const getCurrencyRates = async ({ logger, browser, pages, apis, telegram }) => {
   const aggregated = {};
@@ -72,16 +76,17 @@ const getCurrencyRates = async ({ logger, browser, pages, apis, telegram }) => {
 };
 
 const getData = async ({ cache, logger, browser, places }) => {
-  const lastCached = cache.length && cache[cache.length - 1];
+  const dataRecords = cache.data;
+  const lastCached = dataRecords.length && dataRecords[dataRecords.length - 1];
   if (lastCached) {
-    if (cache.find(({ fetching }) => fetching === true)) {
+    if (dataRecords.find(({ fetching }) => fetching === true)) {
       return;
     }
 
     const currentMoment = Date.now();
     const timeDiff = currentMoment - lastCached.timestamp
 
-    if (timeDiff < (60000 * 20)) { // 20m
+    if (timeDiff <= (60000 * MINUTES_REFRESH_DATA)) {
       const min = Math.floor(timeDiff/(1000*60));
       const sec = Math.floor(timeDiff / 1000) % 60;
 
@@ -92,7 +97,7 @@ const getData = async ({ cache, logger, browser, places }) => {
 
       return formattedOutput;
     } else {
-      cache.pop();
+      dataRecords.pop();
     }
   }
 
@@ -102,7 +107,7 @@ const getData = async ({ cache, logger, browser, places }) => {
     telegram,
   } = places;
 
-  cache.push({ fetching: true });
+  dataRecords.push({ fetching: true });
   logger.info('Fetching fresh data');
   const currencyRates = await getCurrencyRates({
     logger,
@@ -112,11 +117,11 @@ const getData = async ({ cache, logger, browser, places }) => {
     telegram,
   });
 
-  cache.splice(cache.findIndex(({ fetching }) => fetching === true), 1)
+  dataRecords.splice(dataRecords.findIndex(({ fetching }) => fetching === true), 1)
   const timestamp = Date.now();
   // TODO: merge current with the last. Update currency rates instead of creating a new
   // object. Mono might be not present in the latest updates because of 'too many requests'
-  cache.push({ currencyRates, timestamp });
+  dataRecords.push({ currencyRates, timestamp });
   logger.debug('New data is saved to cache');
 
   const formattedOutput = formatOutput({ currencyRates, timestamp });
@@ -141,21 +146,13 @@ const getData = async ({ cache, logger, browser, places }) => {
   }
   logger.debug(`browserOptions are ${JSON.stringify(browserOptions)}`);
 
-  const cache = [];
+  const cache = {
+    data: [],
+    requests: [],
+  };
   const browser = await puppeteer.launch(browserOptions);
   logger.debug('Puppeteer browser is ready');
 
-  // Fetch data on start
-  getData({
-    cache,
-    logger,
-    browser,
-    places: {
-      pages: currencyPagesMap,
-      apis: currencyApisMap,
-      telegram: currencyTelegramMap,
-    },
-  });
 
   // Initialize Telegram bot and start listen to messages
   const tgToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -164,10 +161,40 @@ const getData = async ({ cache, logger, browser, places }) => {
   const commandsList = [ 'start', 'help' ];
   const bot = new TelegramBot(tgToken, { polling: true });
 
+  const getDataAndRespond = async ({ initial = false } = {}) => {
+    logger.debug(`getDataAndRespond. CACHE requests: [${cache.requests.join(', ')}]`);
+    const outputText = await getData({
+      cache,
+      logger,
+      browser,
+      places: {
+        pages: currencyPagesMap,
+        apis: currencyApisMap,
+        telegram: currencyTelegramMap,
+      },
+    });
+
+    if (outputText) {
+      // respond to all the requests if any
+      const ids = [ ...cache.requests ];
+      ids.forEach((chatId, index) => {
+        logger.debug(`Sending data to ${chatId}`);
+        bot.sendMessage(chatId, outputText);
+        cache.requests.splice(index, 1);
+      });
+
+      return ids;
+    } else if (!initial) {
+      setTimeout(getDataAndRespond, SECONDS_UNTIL_RETRY_TO_SEND);
+    }
+  };
+
+  // Fetch data on start
+  getDataAndRespond({ initial: true });
+
   bot.on('message', msg => {
     try {
       const chatId = msg.chat.id;
-      logger.info(`Received msg from user id ${chatId}`)
       if (tgWhitelist.includes(chatId)) {
 
         const checkForCommand = msg.text.match(new RegExp(`^\\/(${commandsList.join('|')}).*`));
@@ -180,32 +207,27 @@ const getData = async ({ cache, logger, browser, places }) => {
           switch (command) {
             case 'start': {
               logger.info(`START command from ${chatId}`)
-              Promise.race([
-                getData({
-                  cache,
-                  logger,
-                  browser,
-                  places: {
-                    pages: currencyPagesMap,
-                    apis: currencyApisMap,
-                    telegram: currencyTelegramMap,
-                  },
-                }).then((data) => {
-                  if (data) {
-                    logger.info(`Sending response msg to ${chatId}`);
-                    bot.sendMessage(chatId, data);
+
+              const alreadyRequested = cache.requests.includes(chatId);
+              if (!alreadyRequested) {
+                logger.debug(`User ${chatId} requested data`);
+                cache.requests.push(chatId);
+
+                const waitMessage = 'Please wait...';
+                Promise.race([
+                  getDataAndRespond(),
+                  new Promise((r) => setTimeout(r, SECONDS_UNTIL_PLEASE_WAIT)),
+                ])
+                .then((ids) => {
+                  const sentResponse = Array.isArray(ids) && ids.includes(chatId);
+                  if (!sentResponse) {
+                    bot.sendMessage(chatId, waitMessage)
                   }
-                  return data;
-                }),
-                new Promise((r) => {
-                  setTimeout(r, 1000);
-                }),
-              ]).then((data) => {
-                if (!data) {
-                  logger.info(`Sending 'please wait' msg to ${chatId}`);
-                  bot.sendMessage(chatId, 'Please wait...');
-                }
-              });
+                }).catch((e) => logger.error(e));
+              }
+
+
+
               break;
             }
             default: {
@@ -217,6 +239,7 @@ const getData = async ({ cache, logger, browser, places }) => {
             }
           }
         } else {
+          logger.info(`Received msg from user id ${chatId}`)
           const response = `Text "${msg.text}" from @${msg.from.username}`;
           bot.sendMessage(chatId, response);
         }
@@ -242,6 +265,6 @@ const getData = async ({ cache, logger, browser, places }) => {
 
   process.on('SIGINT', async () => {
     await browser.close();
-    console.log('Browser closed');
+    logger.log('Browser closed');
   });
 })();
