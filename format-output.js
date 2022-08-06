@@ -28,7 +28,7 @@ const formatOutput = ({ currencyRates, timestamp }) => {
     return output;
   };
 
-  const dateTime = new Date(timestamp).toLocaleString('SE');
+  const dateTime = new Date(timestamp).toLocaleString('SE') + ' UTC';
 
   return `Курс валют на ${dateTime}
 
