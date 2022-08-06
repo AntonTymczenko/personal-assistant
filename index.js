@@ -76,12 +76,16 @@ const getCurrencyRates = async ({ logger, browser, pages, apis, telegram }) => {
 };
 
 const getData = async ({ cache, logger, browser, places }) => {
+  if (cache.fetching === true) {
+    logger.debug('Already fetching data, skipping "getData"');
+    return;
+  }
+
   const dataRecords = cache.data;
   const lastCached = dataRecords.length && dataRecords[dataRecords.length - 1];
+
   if (lastCached) {
-    if (dataRecords.find(({ fetching }) => fetching === true)) {
-      return;
-    }
+    logger.debug('Got something in the cache');
 
     const currentMoment = Date.now();
     const timeDiff = currentMoment - lastCached.timestamp
@@ -92,11 +96,12 @@ const getData = async ({ cache, logger, browser, places }) => {
 
       const timeAgo = (min ? min + 'min ' : '')
         + ( sec ? sec + 's ' : '')
-      logger.info(`Using cached version (${timeAgo || '1s '}ago)`);
+      logger.debug(`Using cached version (${timeAgo || '1s '}ago)`);
       const formattedOutput = formatOutput(lastCached);
 
       return formattedOutput;
     } else {
+      logger.debug('Last record in cache is too old, removing it');
       dataRecords.pop();
     }
   }
@@ -107,7 +112,7 @@ const getData = async ({ cache, logger, browser, places }) => {
     telegram,
   } = places;
 
-  dataRecords.push({ fetching: true });
+  cache.fetching = true;
   logger.info('Fetching fresh data');
   const currencyRates = await getCurrencyRates({
     logger,
@@ -117,7 +122,7 @@ const getData = async ({ cache, logger, browser, places }) => {
     telegram,
   });
 
-  dataRecords.splice(dataRecords.findIndex(({ fetching }) => fetching === true), 1)
+  cache.fetching = false;
   const timestamp = Date.now();
   // TODO: merge current with the last. Update currency rates instead of creating a new
   // object. Mono might be not present in the latest updates because of 'too many requests'
@@ -149,6 +154,7 @@ const getData = async ({ cache, logger, browser, places }) => {
   const cache = {
     data: [],
     requests: [],
+    fetching: false,
   };
   const browser = await puppeteer.launch(browserOptions);
   logger.debug('Puppeteer browser is ready');
@@ -231,17 +237,15 @@ const getData = async ({ cache, logger, browser, places }) => {
               break;
             }
             default: {
-              let response = `Command "${command}"`
+              let parsedCommand = `Command "${command}"`
                 + ( args ? ` args "${args}"`: '');
 
-              logger.info(`${response}. User ID ${chatId}`);
-              bot.sendMessage(chatId, response);
+              logger.info(`${parsedCommand}. User ID ${chatId}`);
             }
           }
         } else {
           logger.info(`Received msg from user id ${chatId}`)
           const response = `Text "${msg.text}" from @${msg.from.username}`;
-          bot.sendMessage(chatId, response);
         }
       } else {
         const response = 'You are not in the whitelist. Access denied';
